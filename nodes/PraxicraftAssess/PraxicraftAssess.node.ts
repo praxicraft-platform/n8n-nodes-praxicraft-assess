@@ -11,28 +11,24 @@ import type {
 import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
 import { ASSESS_WEBHOOK_EVENTS, praxicraftAssessApiRequest } from './GenericFunctions';
+import {
+	buildCandidatesBody,
+	buildCaseWriteBody,
+	buildInterviewRescheduleBody,
+	buildInterviewShareBody,
+	buildInterviewWriteBody,
+	buildTemplateWriteBody,
+	buildWebhookWriteBody,
+	caseIdsFromField,
+	caseWriteProperties,
+	candidatesUiProperty,
+	interviewWriteProperties,
+} from './writeBodies';
 
 function asObject(value: IDataObject | IDataObject[] | null): IDataObject {
 	if (value === null) return {};
 	if (Array.isArray(value)) return { results: value };
 	return value;
-}
-
-function parseJsonParam(
-	ctx: IExecuteFunctions,
-	name: string,
-	itemIndex: number,
-	fallback: IDataObject | IDataObject[] = {},
-): IDataObject | IDataObject[] {
-	const raw = ctx.getNodeParameter(name, itemIndex, fallback) as string | IDataObject | IDataObject[];
-	if (typeof raw === 'string') {
-		try {
-			return JSON.parse(raw || (Array.isArray(fallback) ? '[]' : '{}')) as IDataObject | IDataObject[];
-		} catch {
-			throw new NodeOperationError(ctx.getNode(), `Invalid JSON for ${name}`, { itemIndex });
-		}
-	}
-	return raw;
 }
 
 function cursorQs(ctx: IExecuteFunctions, i: number): IDataObject {
@@ -42,6 +38,42 @@ function cursorQs(ctx: IExecuteFunctions, i: number): IDataObject {
 	if (cursor) qs.cursor = cursor;
 	if (pageSize) qs.page_size = pageSize;
 	return qs;
+}
+
+/** Build Public API body for assessment create/update from form fields. */
+function buildAssessmentWriteBody(
+	ctx: IExecuteFunctions,
+	itemIndex: number,
+	mode: 'create' | 'update',
+): IDataObject {
+	const body: IDataObject = {};
+	const title = (ctx.getNodeParameter('assessmentTitle', itemIndex, '') as string).trim();
+	const description = ctx.getNodeParameter('assessmentDescription', itemIndex, '') as string;
+
+	if (mode === 'create') {
+		if (!title) {
+			throw new NodeOperationError(ctx.getNode(), 'Title is required to create an assessment', {
+				itemIndex,
+			});
+		}
+		body.title = title;
+		body.description = description;
+		body.time_limit_minutes = ctx.getNodeParameter('timeLimitMinutes', itemIndex, 60) as number;
+		body.passing_score = ctx.getNodeParameter('passingScore', itemIndex, 70) as number;
+	} else {
+		if (title) body.title = title;
+		if (description !== '') body.description = description;
+		const status = ctx.getNodeParameter('assessmentStatus', itemIndex, '') as string;
+		if (status) body.status = status;
+	}
+
+	const extra = ctx.getNodeParameter('assessmentAdditionalFields', itemIndex, {}) as IDataObject;
+	for (const [key, value] of Object.entries(extra)) {
+		if (value === '' || value === undefined || value === null) continue;
+		body[key] = value;
+	}
+
+	return body;
 }
 
 const paginationFields: INodeProperties[] = [
@@ -473,18 +505,10 @@ export class PraxicraftAssess implements INodeType {
 					show: { resource: ['invitation'], operation: ['invite', 'bulkInvite'] },
 				},
 			},
-			{
-				displayName: 'Candidates (JSON)',
-				name: 'candidatesJson',
-				type: 'json',
-				default: '[{"email":"a@example.com","name":"Alex"}]',
-				displayOptions: {
-					show: {
-						resource: ['invitation', 'pipeline', 'interview'],
-						operation: ['bulkInvite', 'bulkEnroll', 'bulkCreate'],
-					},
-				},
-			},
+			candidatesUiProperty({
+				resource: ['invitation', 'pipeline'],
+				operation: ['bulkInvite', 'bulkEnroll'],
+			}),
 
 			// Webhook create/update
 			{
@@ -492,8 +516,19 @@ export class PraxicraftAssess implements INodeType {
 				name: 'webhookUrl',
 				type: 'string',
 				default: '',
+				required: true,
 				displayOptions: {
-					show: { resource: ['webhook'], operation: ['create', 'update'] },
+					show: { resource: ['webhook'], operation: ['create'] },
+				},
+			},
+			{
+				displayName: 'URL',
+				name: 'webhookUrl',
+				type: 'string',
+				default: '',
+				description: 'Leave empty to keep the current URL',
+				displayOptions: {
+					show: { resource: ['webhook'], operation: ['update'] },
 				},
 			},
 			{
@@ -501,10 +536,182 @@ export class PraxicraftAssess implements INodeType {
 				name: 'events',
 				type: 'multiOptions',
 				default: ['assessment.completed', 'candidate.passed'],
+				required: true,
 				options: [...ASSESS_WEBHOOK_EVENTS],
 				displayOptions: {
-					show: { resource: ['webhook'], operation: ['create', 'update'] },
+					show: { resource: ['webhook'], operation: ['create'] },
 				},
+			},
+			{
+				displayName: 'Events',
+				name: 'events',
+				type: 'multiOptions',
+				default: [],
+				options: [...ASSESS_WEBHOOK_EVENTS],
+				description: 'Leave empty to keep current events',
+				displayOptions: {
+					show: { resource: ['webhook'], operation: ['update'] },
+				},
+			},
+			{
+				displayName: 'Is Active',
+				name: 'webhookIsActive',
+				type: 'options',
+				default: '',
+				options: [
+					{ name: 'Unchanged', value: '' },
+					{ name: 'Active', value: 'true' },
+					{ name: 'Inactive', value: 'false' },
+				],
+				displayOptions: {
+					show: { resource: ['webhook'], operation: ['update'] },
+				},
+			},
+
+			// Assessment create / update fields
+			{
+				displayName: 'Title',
+				name: 'assessmentTitle',
+				type: 'string',
+				default: '',
+				required: true,
+				description: 'Assessment title (slug is generated automatically)',
+				displayOptions: {
+					show: { resource: ['assessment'], operation: ['create'] },
+				},
+			},
+			{
+				displayName: 'Title',
+				name: 'assessmentTitle',
+				type: 'string',
+				default: '',
+				description: 'Leave empty to keep the current title',
+				displayOptions: {
+					show: { resource: ['assessment'], operation: ['update'] },
+				},
+			},
+			{
+				displayName: 'Description',
+				name: 'assessmentDescription',
+				type: 'string',
+				typeOptions: { rows: 3 },
+				default: '',
+				displayOptions: {
+					show: { resource: ['assessment'], operation: ['create', 'update'] },
+				},
+			},
+			{
+				displayName: 'Status',
+				name: 'assessmentStatus',
+				type: 'options',
+				default: '',
+				options: [
+					{ name: 'Unchanged', value: '' },
+					{ name: 'Draft', value: 'draft' },
+					{ name: 'Active', value: 'active' },
+					{ name: 'Archived', value: 'archived' },
+				],
+				displayOptions: {
+					show: { resource: ['assessment'], operation: ['update'] },
+				},
+			},
+			{
+				displayName: 'Time Limit (Minutes)',
+				name: 'timeLimitMinutes',
+				type: 'number',
+				default: 60,
+				typeOptions: { minValue: 1 },
+				displayOptions: {
+					show: { resource: ['assessment'], operation: ['create'] },
+				},
+			},
+			{
+				displayName: 'Passing Score',
+				name: 'passingScore',
+				type: 'number',
+				default: 70,
+				typeOptions: { minValue: 0, maxValue: 100 },
+				description: 'Pass threshold 0–100',
+				displayOptions: {
+					show: { resource: ['assessment'], operation: ['create'] },
+				},
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'assessmentAdditionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: {
+					show: { resource: ['assessment'], operation: ['create', 'update'] },
+				},
+				options: [
+					{
+						displayName: 'Time Limit (Minutes)',
+						name: 'time_limit_minutes',
+						type: 'number',
+						default: 60,
+						description: 'For update — set a new overall time limit',
+					},
+					{
+						displayName: 'Passing Score',
+						name: 'passing_score',
+						type: 'number',
+						default: 70,
+						typeOptions: { minValue: 0, maxValue: 100 },
+						description: 'For update — set a new pass threshold 0–100',
+					},
+					{
+						displayName: 'Team ID',
+						name: 'team_id',
+						type: 'string',
+						default: '',
+						description: 'Squad UUID (Growth+)',
+					},
+					{
+						displayName: 'Enforce Fullscreen',
+						name: 'enforce_fullscreen',
+						type: 'boolean',
+						default: false,
+					},
+					{
+						displayName: 'Copy Paste Disabled',
+						name: 'copy_paste_disabled',
+						type: 'boolean',
+						default: false,
+					},
+					{
+						displayName: 'Session Recording Enabled',
+						name: 'session_recording_enabled',
+						type: 'boolean',
+						default: false,
+					},
+					{
+						displayName: 'Screen Recording Enabled',
+						name: 'screen_recording_enabled',
+						type: 'boolean',
+						default: false,
+					},
+					{
+						displayName: 'Webcam Recording Enabled',
+						name: 'webcam_recording_enabled',
+						type: 'boolean',
+						default: false,
+					},
+					{
+						displayName: 'Notify On Completion',
+						name: 'notify_on_completion',
+						type: 'boolean',
+						default: true,
+					},
+					{
+						displayName: 'Violation Review Threshold',
+						name: 'violation_review_threshold',
+						type: 'number',
+						default: 3,
+						typeOptions: { minValue: 1, maxValue: 99 },
+					},
+				],
 			},
 
 			// Reject reason
@@ -518,36 +725,16 @@ export class PraxicraftAssess implements INodeType {
 				},
 			},
 
-			// Generic JSON body for create/update (full Public API fields)
+			...caseWriteProperties,
+			...interviewWriteProperties,
+
 			{
-				displayName: 'Body (JSON)',
-				name: 'bodyJson',
-				type: 'json',
-				default: '{}',
-				description:
-					'Request body for create/update operations. Merged with simple fields when both are set. See Public API docs.',
-				displayOptions: {
-					show: {
-						resource: ['assessment', 'case', 'interview', 'webhook'],
-						operation: [
-							'create',
-							'update',
-							'attachCases',
-							'replaceCases',
-							'createTemplate',
-							'updateTemplate',
-							'reschedule',
-							'share',
-							'cancel',
-						],
-					},
-				},
-			},
-			{
-				displayName: 'Case IDs (JSON Array)',
-				name: 'caseIdsJson',
-				type: 'json',
-				default: '[]',
+				displayName: 'Case IDs',
+				name: 'caseIds',
+				type: 'string',
+				default: '',
+				required: true,
+				description: 'Comma-separated case UUIDs to attach or replace',
 				displayOptions: {
 					show: {
 						resource: ['assessment'],
@@ -616,11 +803,18 @@ export class PraxicraftAssess implements INodeType {
 					} else if (operation === 'create') {
 						method = 'POST';
 						path = '/assessments/create/';
-						body = parseJsonParam(this, 'bodyJson', i) as IDataObject;
+						body = buildAssessmentWriteBody(this, i, 'create');
 					} else if (operation === 'update') {
 						method = 'PATCH';
 						path = `/assessments/${slug()}/update/`;
-						body = parseJsonParam(this, 'bodyJson', i) as IDataObject;
+						body = buildAssessmentWriteBody(this, i, 'update');
+						if (Object.keys(body).length === 0) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'Set at least one field to update (title, status, description, or Additional Fields)',
+								{ itemIndex: i },
+							);
+						}
 					} else if (operation === 'duplicate') {
 						method = 'POST';
 						path = `/assessments/${slug()}/duplicate/`;
@@ -633,15 +827,23 @@ export class PraxicraftAssess implements INodeType {
 					} else if (operation === 'attachCases') {
 						method = 'POST';
 						path = `/assessments/${slug()}/cases/attach/`;
-						const caseIds = parseJsonParam(this, 'caseIdsJson', i, []) as IDataObject[];
-						const extra = parseJsonParam(this, 'bodyJson', i) as IDataObject;
-						body = { case_ids: caseIds, ...extra };
+						const caseIds = caseIdsFromField(this, i);
+						if (!caseIds.length) {
+							throw new NodeOperationError(this.getNode(), 'Provide at least one Case ID', {
+								itemIndex: i,
+							});
+						}
+						body = { case_ids: caseIds };
 					} else if (operation === 'replaceCases') {
 						method = 'PUT';
 						path = `/assessments/${slug()}/cases/replace/`;
-						const caseIds = parseJsonParam(this, 'caseIdsJson', i, []) as IDataObject[];
-						const extra = parseJsonParam(this, 'bodyJson', i) as IDataObject;
-						body = { case_ids: caseIds, ...extra };
+						const caseIds = caseIdsFromField(this, i);
+						if (!caseIds.length) {
+							throw new NodeOperationError(this.getNode(), 'Provide at least one Case ID', {
+								itemIndex: i,
+							});
+						}
+						body = { case_ids: caseIds };
 					} else if (operation === 'removeCase') {
 						method = 'DELETE';
 						path = `/assessments/${slug()}/cases/remove/`;
@@ -657,13 +859,13 @@ export class PraxicraftAssess implements INodeType {
 					} else if (operation === 'create') {
 						method = 'POST';
 						path = '/cases/create/';
-						body = parseJsonParam(this, 'bodyJson', i) as IDataObject;
+						body = buildCaseWriteBody(this, i, 'create');
 					} else if (operation === 'get') {
 						path = `/cases/${enc(this.getNodeParameter('caseId', i) as string)}/`;
 					} else if (operation === 'update') {
 						method = 'PATCH';
 						path = `/cases/${enc(this.getNodeParameter('caseId', i) as string)}/`;
-						body = parseJsonParam(this, 'bodyJson', i) as IDataObject;
+						body = buildCaseWriteBody(this, i, 'update');
 					} else if (operation === 'delete') {
 						method = 'DELETE';
 						path = `/cases/${enc(this.getNodeParameter('caseId', i) as string)}/`;
@@ -687,11 +889,10 @@ export class PraxicraftAssess implements INodeType {
 						method = 'POST';
 						const slug = enc(this.getNodeParameter('assessmentSlug', i) as string);
 						path = `/assessments/${slug}/invites/bulk/`;
-						body = {
-							candidates: parseJsonParam(this, 'candidatesJson', i, []) as IDataObject[],
+						body = buildCandidatesBody(this, i, {
 							send_email: this.getNodeParameter('sendEmail', i) as boolean,
 							expires_days: this.getNodeParameter('expiresDays', i) as number,
-						};
+						});
 					} else if (operation === 'get') {
 						path = `/invites/${enc(this.getNodeParameter('inviteToken', i) as string)}/`;
 					} else if (operation === 'getResult') {
@@ -721,10 +922,9 @@ export class PraxicraftAssess implements INodeType {
 					} else if (operation === 'bulkEnroll') {
 						method = 'POST';
 						path = `/pipelines/${enc(this.getNodeParameter('pipelineSlug', i) as string)}/enroll/bulk/`;
-						body = {
-							candidates: parseJsonParam(this, 'candidatesJson', i, []) as IDataObject[],
+						body = buildCandidatesBody(this, i, {
 							send_email: this.getNodeParameter('sendEmail', i) as boolean,
-						};
+						});
 					} else if (operation === 'listEnrollments') {
 						path = `/pipelines/${enc(this.getNodeParameter('pipelineSlug', i) as string)}/enrollments/`;
 						qs = cursorQs(this, i);
@@ -749,23 +949,13 @@ export class PraxicraftAssess implements INodeType {
 					} else if (operation === 'create') {
 						method = 'POST';
 						path = '/webhooks/create/';
-						const extra = parseJsonParam(this, 'bodyJson', i) as IDataObject;
-						body = {
-							url: this.getNodeParameter('webhookUrl', i) as string,
-							events: this.getNodeParameter('events', i) as string[],
-							...extra,
-						};
+						body = buildWebhookWriteBody(this, i, 'create');
 					} else if (operation === 'get') {
 						path = `/webhooks/${enc(this.getNodeParameter('webhookId', i) as string)}/`;
 					} else if (operation === 'update') {
 						method = 'PATCH';
 						path = `/webhooks/${enc(this.getNodeParameter('webhookId', i) as string)}/`;
-						const extra = parseJsonParam(this, 'bodyJson', i) as IDataObject;
-						body = { ...extra };
-						const url = this.getNodeParameter('webhookUrl', i, '') as string;
-						const events = this.getNodeParameter('events', i, []) as string[];
-						if (url) body.url = url;
-						if (events?.length) body.events = events;
+						body = buildWebhookWriteBody(this, i, 'update');
 					} else if (operation === 'delete') {
 						method = 'DELETE';
 						path = `/webhooks/${enc(this.getNodeParameter('webhookId', i) as string)}/`;
@@ -802,24 +992,20 @@ export class PraxicraftAssess implements INodeType {
 					} else if (operation === 'create') {
 						method = 'POST';
 						path = '/interviews/create/';
-						body = parseJsonParam(this, 'bodyJson', i) as IDataObject;
+						body = buildInterviewWriteBody(this, i, 'create');
 					} else if (operation === 'bulkCreate') {
 						method = 'POST';
 						path = '/interviews/bulk/';
-						body = {
-							candidates: parseJsonParam(this, 'candidatesJson', i, []) as IDataObject[],
-							...(parseJsonParam(this, 'bodyJson', i) as IDataObject),
-						};
+						body = buildInterviewWriteBody(this, i, 'bulk');
 					} else if (operation === 'get') {
 						path = `/interviews/${id()}/`;
 					} else if (operation === 'cancel') {
 						method = 'POST';
 						path = `/interviews/${id()}/cancel/`;
-						body = parseJsonParam(this, 'bodyJson', i) as IDataObject;
 					} else if (operation === 'reschedule') {
 						method = 'POST';
 						path = `/interviews/${id()}/reschedule/`;
-						body = parseJsonParam(this, 'bodyJson', i) as IDataObject;
+						body = buildInterviewRescheduleBody(this, i);
 					} else if (operation === 'analysis') {
 						path = `/interviews/${id()}/analysis/`;
 					} else if (operation === 'replay') {
@@ -827,7 +1013,7 @@ export class PraxicraftAssess implements INodeType {
 					} else if (operation === 'share') {
 						method = 'POST';
 						path = `/interviews/${id()}/share/`;
-						body = parseJsonParam(this, 'bodyJson', i) as IDataObject;
+						body = buildInterviewShareBody(this, i);
 					} else if (operation === 'analytics') {
 						path = '/interviews/analytics/';
 					} else if (operation === 'listTemplates') {
@@ -836,11 +1022,11 @@ export class PraxicraftAssess implements INodeType {
 					} else if (operation === 'createTemplate') {
 						method = 'POST';
 						path = '/interviews/templates/create/';
-						body = parseJsonParam(this, 'bodyJson', i) as IDataObject;
+						body = buildTemplateWriteBody(this, i, 'create');
 					} else if (operation === 'updateTemplate') {
 						method = 'PATCH';
 						path = `/interviews/templates/${enc(this.getNodeParameter('templateId', i) as string)}/update/`;
-						body = parseJsonParam(this, 'bodyJson', i) as IDataObject;
+						body = buildTemplateWriteBody(this, i, 'update');
 					} else if (operation === 'deleteTemplate') {
 						method = 'DELETE';
 						path = `/interviews/templates/${enc(this.getNodeParameter('templateId', i) as string)}/delete/`;

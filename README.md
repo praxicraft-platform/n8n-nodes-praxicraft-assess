@@ -69,7 +69,13 @@ Supported events include assessment, candidate, invitation, pipeline, and interv
 | Interview | List, Create, Bulk Create, Get, Cancel, Reschedule, Analysis, Replay, Share, Templates, … |
 | Integration | List, Get Connect URL, Test |
 
-Create/update operations accept a **Body (JSON)** field matching the Public API. Responses are flat JSON.
+Create/update operations use **form fields** (not a raw JSON body). Bulk invite/enroll use a Candidates list UI. Template config remains a JSON object field because the API accepts arbitrary config.
+
+#### Example: create an assessment
+
+1. Resource **Assessment** → **Create**
+2. Set **Title** (required), optional description / time limit / passing score
+3. Use **Additional Fields** for proctoring flags or squad `team_id`
 
 #### Example: invite a candidate
 
