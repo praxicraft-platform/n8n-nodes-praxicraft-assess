@@ -1,0 +1,63 @@
+{
+  "name": "n8n-nodes-praxicraft-assess",
+  "version": "0.2.0",
+  "description": "n8n community node for Praxicraft Assess — invite candidates, fetch results, pipelines, interviews, and signed webhooks via the Public API",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "praxicraft",
+    "assess",
+    "hiring",
+    "assessment"
+  ],
+  "license": "MIT",
+  "homepage": "https://docs.praxicraft.com/n8n",
+  "author": {
+    "name": "Praxicraft",
+    "email": "support@praxicraft.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/praxicraft-platform/n8n-nodes-praxicraft-assess.git"
+  },
+  "bugs": {
+    "url": "https://github.com/praxicraft-platform/n8n-nodes-praxicraft-assess/issues"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "rm -rf dist && tsc && gulp build:icons",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test dist/nodes/PraxicraftAssess/*.test.js",
+    "lint": "echo \"Run npx @n8n/scan-community-package n8n-nodes-praxicraft-assess after publish\"",
+    "prepublishOnly": "npm test && npm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/PraxicraftAssessApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/PraxicraftAssess/PraxicraftAssess.node.js",
+      "dist/nodes/PraxicraftAssessTrigger/PraxicraftAssessTrigger.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "gulp": "^5.0.0",
+    "n8n-workflow": "^1.82.0",
+    "typescript": "^5.7.3"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "node": "n8n-nodes-praxicraft-assess.praxicraftAssess",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["Productivity", "Marketing"],
+  "resources": {
+    "credentialDocumentation": [
+      {
+        "url": "https://docs.praxicraft.com/authentication"
+      }
+    ],
+    "primaryDocumentation": [
+      {
+        "url": "https://docs.praxicraft.com/n8n"
+      }
+    ]
+  }
+}
