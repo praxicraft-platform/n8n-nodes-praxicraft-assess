@@ -1,19 +1,60 @@
 name: Publish to npm
 
-# Tag a release: git tag v0.2.0 && git push origin v0.2.0
-# Prefer npm Trusted Publishing (OIDC) for this repo; NPM_TOKEN is a fallback.
+# Triggers:
+# 1) Push to main when nodes/ (or related package paths) change
+#    → creates git tag v{package.json version} if missing (tag push then publishes)
+# 2) Push of a v* tag → test, build, npm publish --provenance
+# 3) workflow_dispatch → same as (1) if tag missing, else no-op
+#
+# Bump package.json version before merging node changes you want released.
+# Prefer npm Trusted Publishing (OIDC); NPM_TOKEN is a fallback.
 on:
   push:
+    branches: [main]
+    paths:
+      - "nodes/**"
+      - "credentials/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "gulpfile.js"
+      - ".github/workflows/publish.yml"
     tags:
       - "v*"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
+  tag-on-main:
+    name: Create version tag
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push v* tag if missing
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v${VERSION}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists — bump package.json to release again."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "Created and pushed $TAG (publish job will run on the tag)."
+
   publish:
+    name: Publish to npm
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +66,6 @@ jobs:
           cache: npm
 
       - name: Verify tag matches package.json
-        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
           PKG_VERSION="$(node -p "require('./package.json').version")"
