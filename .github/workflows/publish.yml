@@ -1,12 +1,10 @@
 name: Publish to npm
 
-# Triggers:
-# 1) Push to main when nodes/ (or related package paths) change
-#    → creates git tag v{package.json version} if missing (tag push then publishes)
-# 2) Push of a v* tag → test, build, npm publish --provenance
-# 3) workflow_dispatch → same as (1) if tag missing, else no-op
+# On push to main (package paths) or manual dispatch:
+# test → build → npm publish --provenance → create v{version} git tag.
+# Skips publish if that version is already on npm (idempotent re-runs).
 #
-# Bump package.json version before merging node changes you want released.
+# Bump package.json version before merging changes you want released.
 # Prefer npm Trusted Publishing (OIDC); NPM_TOKEN is a fallback.
 on:
   push:
@@ -19,8 +17,6 @@ on:
       - "tsconfig.json"
       - "gulpfile.js"
       - ".github/workflows/publish.yml"
-    tags:
-      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -28,36 +24,13 @@ permissions:
   id-token: write
 
 jobs:
-  tag-on-main:
-    name: Create version tag
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+  publish:
+    name: Publish to npm
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create and push v* tag if missing
-        run: |
-          VERSION="$(node -p "require('./package.json').version")"
-          TAG="v${VERSION}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists — bump package.json to release again."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag "$TAG"
-          git push origin "$TAG"
-          echo "Created and pushed $TAG (publish job will run on the tag)."
-
-  publish:
-    name: Publish to npm
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
@@ -65,20 +38,51 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: npm
 
-      - name: Verify tag matches package.json
+      - name: Read package version
+        id: pkg
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          PKG_VERSION="$(node -p "require('./package.json').version")"
-          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "Tag v$TAG_VERSION does not match package.json version $PKG_VERSION"
-            exit 1
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Package version: ${VERSION}"
+
+      - name: Check if version already published
+        id: npm
+        run: |
+          VERSION="${{ steps.pkg.outputs.version }}"
+          if npm view "@praxicraft/n8n-nodes-assess@${VERSION}" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Version ${VERSION} is already on npm — skipping publish."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Version ${VERSION} not on npm — will publish."
           fi
 
       - run: npm ci --ignore-scripts
+        if: steps.npm.outputs.exists != 'true'
+
       - run: npm test
+        if: steps.npm.outputs.exists != 'true'
+
       - run: npm run build
+        if: steps.npm.outputs.exists != 'true'
 
       - name: Publish with provenance
+        if: steps.npm.outputs.exists != 'true'
         run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create and push v* tag if missing
+        if: steps.npm.outputs.exists != 'true'
+        run: |
+          VERSION="${{ steps.pkg.outputs.version }}"
+          TAG="v${VERSION}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "Created and pushed $TAG."
