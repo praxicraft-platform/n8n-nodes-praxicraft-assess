@@ -5,8 +5,8 @@ import type {
 	IExecuteFunctions,
 	IHookFunctions,
 	IHttpRequestMethods,
+	IHttpRequestOptions,
 	ILoadOptionsFunctions,
-	IRequestOptions,
 	IWebhookFunctions,
 	JsonObject,
 } from 'n8n-workflow';
@@ -47,7 +47,7 @@ export async function praxicraftAssessApiRequest(
 	const baseUrl = String(credentials.baseUrl || 'https://assess.praxicraft.com').replace(/\/$/, '');
 	const urlPath = path.startsWith('/') ? path : `/${path}`;
 
-	const options: IRequestOptions = {
+	const options: IHttpRequestOptions = {
 		method,
 		url: `${baseUrl}/api/v1/public${urlPath}`,
 		qs,
@@ -68,7 +68,7 @@ export async function praxicraftAssessApiRequest(
 	}
 
 	try {
-		const response = await this.helpers.requestWithAuthentication.call(
+		const response = await this.helpers.httpRequestWithAuthentication.call(
 			this,
 			'praxicraftAssessApi',
 			options,

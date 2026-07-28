@@ -6,8 +6,9 @@ import type {
 	INodeProperties,
 	INodeType,
 	INodeTypeDescription,
+	JsonObject,
 } from 'n8n-workflow';
-import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
+import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
 import { ASSESS_WEBHOOK_EVENTS, praxicraftAssessApiRequest } from './GenericFunctions';
 
@@ -64,12 +65,16 @@ export class PraxicraftAssess implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Praxicraft Assess',
 		name: 'praxicraftAssess',
-		icon: 'file:praxicraftAssess.svg',
+		icon: {
+			light: 'file:praxicraftAssess.light.svg',
+			dark: 'file:praxicraftAssess.dark.svg',
+		},
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Full Praxicraft Assess Public API wrapper (assessments, cases, invites, pipelines, interviews, webhooks)',
 		defaults: { name: 'Praxicraft Assess' },
+		usableAsTool: true,
 		inputs: [NodeConnectionTypes.Main],
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [{ name: 'praxicraftAssessApi', required: true }],
@@ -315,6 +320,7 @@ export class PraxicraftAssess implements INodeType {
 				displayName: 'Invite Token',
 				name: 'inviteToken',
 				type: 'string',
+				typeOptions: { password: true },
 				default: '',
 				required: true,
 				displayOptions: {
@@ -424,6 +430,7 @@ export class PraxicraftAssess implements INodeType {
 				displayName: 'Email',
 				name: 'email',
 				type: 'string',
+				placeholder: 'name@email.com',
 				default: '',
 				required: true,
 				displayOptions: {
@@ -537,7 +544,7 @@ export class PraxicraftAssess implements INodeType {
 				},
 			},
 			{
-				displayName: 'Case IDs (JSON array)',
+				displayName: 'Case IDs (JSON Array)',
 				name: 'caseIdsJson',
 				type: 'json',
 				default: '[]',
@@ -874,7 +881,7 @@ export class PraxicraftAssess implements INodeType {
 					returnData.push({ json: { error: (error as Error).message }, pairedItem: { item: i } });
 					continue;
 				}
-				throw error;
+				throw new NodeApiError(this.getNode(), error as JsonObject, { itemIndex: i });
 			}
 		}
 

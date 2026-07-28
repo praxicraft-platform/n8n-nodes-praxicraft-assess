@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { describe, it } from 'node:test';
 
-import { unwrapAssessResponse, verifyPraxicraftSignature } from './GenericFunctions';
+import { unwrapAssessResponse, verifyPraxicraftSignature } from '../nodes/PraxicraftAssess/GenericFunctions';
 
 describe('unwrapAssessResponse', () => {
 	it('returns flat Public API objects as-is', () => {

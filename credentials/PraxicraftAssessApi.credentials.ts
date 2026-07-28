@@ -12,6 +12,11 @@ export class PraxicraftAssessApi implements ICredentialType {
 
 	documentationUrl = 'https://docs.praxicraft.com/authentication';
 
+	icon = {
+		light: 'file:praxicraftAssess.light.svg',
+		dark: 'file:praxicraftAssess.dark.svg',
+	} as const;
+
 	properties: INodeProperties[] = [
 		{
 			displayName: 'API Key',

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { PraxicraftAssess } from './PraxicraftAssess.node';
-import { PUBLIC_API_OPERATIONS } from './operations.contract';
+import { PraxicraftAssess } from '../nodes/PraxicraftAssess/PraxicraftAssess.node';
+import { PUBLIC_API_OPERATIONS } from '../nodes/PraxicraftAssess/operations.contract';
 
 describe('PraxicraftAssess Public API parity', () => {
 	it('exposes every contracted resource/operation in the node UI', () => {

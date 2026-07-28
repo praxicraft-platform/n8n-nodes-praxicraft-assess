@@ -5,8 +5,9 @@ import type {
 	INodeTypeDescription,
 	IWebhookFunctions,
 	IWebhookResponseData,
+	JsonObject,
 } from 'n8n-workflow';
-import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
+import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
 import {
 	ASSESS_WEBHOOK_EVENTS,
@@ -23,13 +24,18 @@ export class PraxicraftAssessTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Praxicraft Assess Trigger',
 		name: 'praxicraftAssessTrigger',
-		icon: 'file:praxicraftAssess.svg',
+		icon: {
+			light: 'file:praxicraftAssess.light.svg',
+			dark: 'file:praxicraftAssess.dark.svg',
+		},
 		group: ['trigger'],
 		version: 1,
+		subtitle: '={{$parameter["events"].join(", ")}}',
 		description: 'Starts the workflow when Assess sends a signed webhook event',
 		defaults: {
 			name: 'Praxicraft Assess Trigger',
 		},
+		usableAsTool: true,
 		inputs: [],
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [
@@ -84,9 +90,13 @@ export class PraxicraftAssessTrigger implements INodeType {
 					);
 					const data = response as IDataObject;
 					return data?.url === webhookUrl;
-				} catch {
+				} catch (error) {
 					delete webhookData.webhookId;
 					delete webhookData.webhookSecret;
+					const message = error instanceof Error ? error.message : String(error);
+					if (!/404|not found|does not exist/i.test(message)) {
+						throw new NodeApiError(this.getNode(), error as JsonObject);
+					}
 					return false;
 				}
 			},
@@ -138,8 +148,17 @@ export class PraxicraftAssessTrigger implements INodeType {
 						'DELETE',
 						`/webhooks/${encodeURIComponent(webhookData.webhookId)}/`,
 					);
-				} catch {
-					// Already removed remotely — treat as cleaned up
+				} catch (error) {
+					const message = error instanceof Error ? error.message : String(error);
+					delete webhookData.webhookId;
+					delete webhookData.webhookSecret;
+					// Remote endpoint may already be gone
+					if (!/404|not found|does not exist/i.test(message)) {
+						throw new NodeApiError(this.getNode(), error as JsonObject, {
+							message: `Failed to delete Assess webhook: ${message}`,
+						});
+					}
+					return true;
 				}
 
 				delete webhookData.webhookId;
