@@ -52,10 +52,17 @@ jobs:
           if npm view "@praxicraft/n8n-nodes-assess@${VERSION}" version >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "Version ${VERSION} is already on npm — skipping publish."
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Version ${VERSION} not on npm — will publish."
+            exit 0
           fi
+          # Unpublished versions stay blocked forever; `time` still lists them.
+          if npm view "@praxicraft/n8n-nodes-assess" time --json 2>/dev/null \
+            | node -e "const t=JSON.parse(require('fs').readFileSync(0,'utf8')); process.exit(t['${VERSION}']?0:1)"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::error::Version ${VERSION} was published before (even if unpublished). Bump package.json — npm never reuses version numbers."
+            exit 1
+          fi
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+          echo "Version ${VERSION} not on npm — will publish."
 
       - run: npm ci --ignore-scripts
         if: steps.npm.outputs.exists != 'true'
