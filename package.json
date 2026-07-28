@@ -1,5 +1,5 @@
 {
-  "name": "n8n-nodes-praxicraft-assess",
+  "name": "@praxicraft/n8n-nodes-assess",
   "version": "0.2.0",
   "description": "n8n community node for Praxicraft Assess — invite candidates, fetch results, pipelines, interviews, and signed webhooks via the Public API",
   "keywords": [
@@ -29,7 +29,7 @@
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test dist/nodes/PraxicraftAssess/*.test.js",
-    "lint": "echo \"Run npx @n8n/scan-community-package n8n-nodes-praxicraft-assess after publish\"",
+    "lint": "echo \"Run npx @n8n/scan-community-package @praxicraft/n8n-nodes-assess after publish\"",
     "prepublishOnly": "npm test && npm run build"
   },
   "files": [

@@ -1,8 +1,8 @@
-# n8n-nodes-praxicraft-assess
+# @praxicraft/n8n-nodes-assess
 
 [n8n](https://n8n.io) community node for **[Praxicraft Assess](https://docs.praxicraft.com)** — invite candidates, fetch results, manage pipelines and interviews, and react to signed webhooks. Thin wrapper over the Assess [Public API](https://docs.praxicraft.com/authentication).
 
-Product docs: [n8n setup](https://docs.praxicraft.com/n8n) · [Automations](https://docs.praxicraft.com/automations) · [Webhooks](https://docs.praxicraft.com/webhooks)
+npm scope: **`@praxicraft`** · Product docs: [n8n setup](https://docs.praxicraft.com/n8n) · [Automations](https://docs.praxicraft.com/automations) · [Webhooks](https://docs.praxicraft.com/webhooks)
 
 ## Install
 
@@ -12,7 +12,7 @@ Product docs: [n8n setup](https://docs.praxicraft.com/n8n) · [Automations](http
 2. Enter package name:
 
 ```text
-n8n-nodes-praxicraft-assess
+@praxicraft/n8n-nodes-assess
 ```
 
 3. Confirm. Restart n8n if your host requires it.
@@ -21,7 +21,7 @@ n8n-nodes-praxicraft-assess
 
 ```bash
 cd ~/.n8n
-npm install n8n-nodes-praxicraft-assess
+npm install @praxicraft/n8n-nodes-assess
 ```
 
 Enable community packages per [n8n’s installation docs](https://docs.n8n.io/integrations/community-nodes/installation/).
@@ -95,7 +95,7 @@ npm run build
 
 ## Release
 
-Version tags (`v*`) trigger GitHub Actions to publish to npm with provenance:
+Version tags (`v*`) trigger GitHub Actions to publish to npm with provenance under the `@praxicraft` org:
 
 ```bash
 # bump version in package.json, then:
@@ -103,7 +103,7 @@ git tag v0.2.0
 git push origin v0.2.0
 ```
 
-Requires npm Trusted Publishing for this repository (or `NPM_TOKEN` secret).
+Requires npm Trusted Publishing for `@praxicraft/n8n-nodes-assess` ↔ this repository (or `NPM_TOKEN` with publish rights on the `@praxicraft` org).
 
 ## License
 
