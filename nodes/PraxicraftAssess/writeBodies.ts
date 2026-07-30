@@ -424,27 +424,7 @@ export const caseWriteProperties: INodeProperties[] = [
 		default: {},
 		displayOptions: { show: { resource: ['case'], operation: ['create', 'update'] } },
 		options: [
-			{ displayName: 'Points', name: 'points', type: 'number', default: 10 },
-			{ displayName: 'Time Limit (Minutes)', name: 'time_limit_minutes', type: 'number', default: 30 },
 			{ displayName: 'Allow Multiple Answers', name: 'allow_multiple', type: 'boolean', default: false },
-			{
-				displayName: 'Language',
-				name: 'language',
-				type: 'options',
-				default: 'python',
-				options: [
-					{ name: 'Python', value: 'python' },
-					{ name: 'JavaScript', value: 'javascript' },
-					{ name: 'SQL', value: 'sql' },
-				],
-			},
-			{
-				displayName: 'Starter Code',
-				name: 'starter_code',
-				type: 'string',
-				typeOptions: { rows: 4 },
-				default: '',
-			},
 			{
 				displayName: 'Expected Output',
 				name: 'expected_output',
@@ -453,12 +433,32 @@ export const caseWriteProperties: INodeProperties[] = [
 				default: '',
 			},
 			{
+				displayName: 'Language',
+				name: 'language',
+				type: 'options',
+				default: 'python',
+				options: [
+					{ name: 'JavaScript', value: 'javascript' },
+					{ name: 'Python', value: 'python' },
+					{ name: 'SQL', value: 'sql' },
+				],
+			},
+			{ displayName: 'Points', name: 'points', type: 'number', default: 10 },
+			{
 				displayName: 'Rubric',
 				name: 'rubric',
 				type: 'string',
 				typeOptions: { rows: 3 },
 				default: '',
 			},
+			{
+				displayName: 'Starter Code',
+				name: 'starter_code',
+				type: 'string',
+				typeOptions: { rows: 4 },
+				default: '',
+			},
+			{ displayName: 'Time Limit (Minutes)', name: 'time_limit_minutes', type: 'number', default: 30 },
 		],
 	},
 ];
@@ -543,11 +543,11 @@ export const interviewWriteProperties: INodeProperties[] = [
 		type: 'options',
 		default: 'mixed',
 		options: [
-			{ name: 'Mixed', value: 'mixed' },
-			{ name: 'Coding', value: 'coding' },
-			{ name: 'Technical', value: 'technical' },
-			{ name: 'System Design', value: 'system_design' },
 			{ name: 'Behavioral', value: 'behavioral' },
+			{ name: 'Coding', value: 'coding' },
+			{ name: 'Mixed', value: 'mixed' },
+			{ name: 'System Design', value: 'system_design' },
+			{ name: 'Technical', value: 'technical' },
 		],
 		displayOptions: {
 			show: { resource: ['interview'], operation: ['create', 'bulkCreate'] },
@@ -651,9 +651,7 @@ export const interviewWriteProperties: INodeProperties[] = [
 			show: { resource: ['interview'], operation: ['create', 'bulkCreate'] },
 		},
 		options: [
-			{ displayName: 'Time Limit (Minutes)', name: 'time_limit_minutes', type: 'number', default: 60 },
-			{ displayName: 'Target Role', name: 'target_role', type: 'string', default: '' },
-			{ displayName: 'Target Company', name: 'target_company', type: 'string', default: '' },
+			{ displayName: 'Active Language', name: 'active_language', type: 'string', default: 'python' },
 			{
 				displayName: 'Difficulty',
 				name: 'difficulty',
@@ -666,8 +664,6 @@ export const interviewWriteProperties: INodeProperties[] = [
 					{ name: 'Staff', value: 'staff' },
 				],
 			},
-			{ displayName: 'Active Language', name: 'active_language', type: 'string', default: 'python' },
-			{ displayName: 'Voice Mode', name: 'voice_mode', type: 'boolean', default: false },
 			{ displayName: 'Human Can Join', name: 'human_can_join', type: 'boolean', default: false },
 			{
 				displayName: 'Pipeline Enrollment ID',
@@ -675,6 +671,10 @@ export const interviewWriteProperties: INodeProperties[] = [
 				type: 'string',
 				default: '',
 			},
+			{ displayName: 'Target Company', name: 'target_company', type: 'string', default: '' },
+			{ displayName: 'Target Role', name: 'target_role', type: 'string', default: '' },
+			{ displayName: 'Time Limit (Minutes)', name: 'time_limit_minutes', type: 'number', default: 60 },
+			{ displayName: 'Voice Mode', name: 'voice_mode', type: 'boolean', default: false },
 		],
 	},
 	{
