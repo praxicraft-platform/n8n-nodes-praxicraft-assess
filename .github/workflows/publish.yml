@@ -1,11 +1,5 @@
 name: Publish to npm
 
-# On push to main (package paths) or manual dispatch:
-# test → build → npm publish --provenance → create v{version} git tag.
-# Skips publish if that version is already on npm (idempotent re-runs).
-#
-# Bump package.json version before merging changes you want released.
-# Prefer npm Trusted Publishing (OIDC); NPM_TOKEN is a fallback.
 on:
   push:
     branches: [main]
@@ -23,9 +17,19 @@ permissions:
   contents: write
   id-token: write
 
+concurrency:
+  group: publish-n8n
+  cancel-in-progress: false
+
 jobs:
   publish:
     name: Publish to npm
+    if: |
+      github.event_name == 'workflow_dispatch' || (
+        github.event.head_commit != null &&
+        !startsWith(github.event.head_commit.message, 'chore(release):') &&
+        !contains(github.event.head_commit.message, '[skip release]')
+      )
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,58 +42,70 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: npm
 
-      - name: Read package version
-        id: pkg
+      - name: Auto-bump patch version and CHANGELOG
+        id: version
         run: |
-          VERSION="$(node -p "require('./package.json').version")"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Package version: ${VERSION}"
-
-      - name: Check if version already published
-        id: npm
-        run: |
-          VERSION="${{ steps.pkg.outputs.version }}"
-          if npm view "@praxicraft/n8n-nodes-assess@${VERSION}" version >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Version ${VERSION} is already on npm — skipping publish."
-            exit 0
+          set -euo pipefail
+          git fetch --tags --force
+          LATEST="$(git describe --tags --abbrev=0 2>/dev/null || echo 'v0.0.0')"
+          RAW="${LATEST#v}"
+          IFS=. read -r MAJOR MINOR PATCH <<<"$RAW"
+          MAJOR="${MAJOR:-0}"; MINOR="${MINOR:-0}"; PATCH="${PATCH:-0}"
+          PATCH=$((PATCH + 1))
+          VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          TAG="v${VERSION}"
+          NOTES="$(git log "${LATEST}..HEAD" --pretty=format:'- %s' --no-merges 2>/dev/null | sed '/^chore(release):/d' || true)"
+          if [ -z "$NOTES" ]; then NOTES="- Maintenance release."; fi
+          export VERSION NOTES
+          node <<'NODE'
+          const fs = require("fs");
+          const v = process.env.VERSION;
+          const notes = process.env.NOTES;
+          const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+          pkg.version = v;
+          fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+          let body = fs.existsSync("CHANGELOG.md") ? fs.readFileSync("CHANGELOG.md", "utf8") : "# Changelog\n\n";
+          const idx = body.indexOf("## ");
+          const prior = idx >= 0 ? body.slice(idx) : "";
+          fs.writeFileSync("CHANGELOG.md", `# Changelog\n\n## ${v}\n\n${notes}\n\n${prior}`);
+          NODE
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json CHANGELOG.md
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): ${TAG}"
+            git push origin HEAD:main
           fi
-          # Unpublished versions stay blocked forever; `time` still lists them.
-          if npm view "@praxicraft/n8n-nodes-assess" time --json 2>/dev/null \
-            | node -e "const t=JSON.parse(require('fs').readFileSync(0,'utf8')); process.exit(t['${VERSION}']?0:1)"; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "::error::Version ${VERSION} was published before (even if unpublished). Bump package.json — npm never reuses version numbers."
-            exit 1
-          fi
-          echo "exists=false" >> "$GITHUB_OUTPUT"
-          echo "Version ${VERSION} not on npm — will publish."
+          {
+            echo "version=${VERSION}"
+            echo "tag=${TAG}"
+          } >> "$GITHUB_OUTPUT"
 
       - run: npm ci --ignore-scripts
-        if: steps.npm.outputs.exists != 'true'
-
       - run: npm test
-        if: steps.npm.outputs.exists != 'true'
-
       - run: npm run build
-        if: steps.npm.outputs.exists != 'true'
 
       - name: Publish with provenance
-        if: steps.npm.outputs.exists != 'true'
         run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Create and push v* tag if missing
-        if: steps.npm.outputs.exists != 'true'
+      - name: Create and push tag
         run: |
-          VERSION="${{ steps.pkg.outputs.version }}"
-          TAG="v${VERSION}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists."
-            exit 0
-          fi
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.tag }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag "$TAG"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then echo "Tag exists"; exit 0; fi
+          git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
-          echo "Created and pushed $TAG."
+
+      - run: npm pack
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            praxicraft-n8n-nodes-assess-*.tgz
