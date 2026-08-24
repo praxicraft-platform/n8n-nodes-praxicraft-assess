@@ -35,7 +35,6 @@ export class PraxicraftAssessTrigger implements INodeType {
 		defaults: {
 			name: 'Praxicraft Assess Trigger',
 		},
-		usableAsTool: true,
 		inputs: [],
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [
