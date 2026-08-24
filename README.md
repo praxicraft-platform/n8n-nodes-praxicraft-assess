@@ -101,15 +101,23 @@ npm run build
 
 ## Release
 
-Version tags (`v*`) trigger GitHub Actions to publish to npm with provenance under the `@praxicraft` org:
+Bump `package.json` (and `CHANGELOG.md`) **in the PR** so `main` always matches npm. After merge, push a matching tag — that triggers publish with provenance:
 
 ```bash
-# bump version in package.json, then:
-git tag v0.2.0
-git push origin v0.2.0
+# after merge, on main:
+VERSION="$(node -p "require('./package.json').version")"
+git tag -a "v${VERSION}" -m "Release v${VERSION}"
+git push origin "v${VERSION}"
 ```
 
-Requires npm Trusted Publishing for `@praxicraft/n8n-nodes-assess` ↔ this repository (or `NPM_TOKEN` with publish rights on the `@praxicraft` org).
+See [RELEASING.md](./RELEASING.md). Requires npm Trusted Publishing for `@praxicraft/n8n-nodes-assess` ↔ this repository (or `NPM_TOKEN` with publish rights on the `@praxicraft` org).
+
+Before submitting to the n8n community verifier, run:
+
+```bash
+npx @n8n/node-cli@latest lint
+npx @n8n/scan-community-package @praxicraft/n8n-nodes-assess
+```
 
 ## License
 
