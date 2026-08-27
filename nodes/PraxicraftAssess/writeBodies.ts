@@ -46,46 +46,46 @@ function candidatesFromFixedCollection(
 		.filter((row): row is IDataObject => row !== null);
 }
 
-export function caseIdsFromField(ctx: IExecuteFunctions, itemIndex: number): string[] {
-	return parseCommaIds(ctx.getNodeParameter('caseIds', itemIndex, '') as string);
+export function taskIdsFromField(ctx: IExecuteFunctions, itemIndex: number): string[] {
+	return parseCommaIds(ctx.getNodeParameter('taskIds', itemIndex, '') as string);
 }
 
-export function buildCaseWriteBody(
+export function buildTaskWriteBody(
 	ctx: IExecuteFunctions,
 	itemIndex: number,
 	mode: 'create' | 'update',
 ): IDataObject {
 	const body: IDataObject = {};
-	const title = trimString(ctx.getNodeParameter('caseTitle', itemIndex, ''));
-	const question = ctx.getNodeParameter('caseQuestion', itemIndex, '') as string;
-	const description = ctx.getNodeParameter('caseDescription', itemIndex, '') as string;
+	const title = trimString(ctx.getNodeParameter('taskTitle', itemIndex, ''));
+	const question = ctx.getNodeParameter('taskQuestion', itemIndex, '') as string;
+	const description = ctx.getNodeParameter('taskDescription', itemIndex, '') as string;
 
 	if (mode === 'create') {
 		if (!title) {
-			throw new NodeOperationError(ctx.getNode(), 'Title is required to create a case', {
+			throw new NodeOperationError(ctx.getNode(), 'Title is required to create a task', {
 				itemIndex,
 			});
 		}
 		body.title = title;
-		body.case_type = ctx.getNodeParameter('caseType', itemIndex, 'mcq') as string;
-		body.difficulty = ctx.getNodeParameter('caseDifficulty', itemIndex, 'medium') as string;
-		body.points = ctx.getNodeParameter('casePoints', itemIndex, 10) as number;
+		body.task_type = ctx.getNodeParameter('taskType', itemIndex, 'mcq') as string;
+		body.difficulty = ctx.getNodeParameter('taskDifficulty', itemIndex, 'medium') as string;
+		body.points = ctx.getNodeParameter('taskPoints', itemIndex, 10) as number;
 		body.question = question;
 		body.description = description;
 	} else {
 		if (title) body.title = title;
 		if (question !== '') body.question = question;
 		if (description !== '') body.description = description;
-		const caseType = ctx.getNodeParameter('caseType', itemIndex, '') as string;
-		if (caseType) body.case_type = caseType;
-		const difficulty = ctx.getNodeParameter('caseDifficulty', itemIndex, '') as string;
+		const taskType = ctx.getNodeParameter('taskType', itemIndex, '') as string;
+		if (taskType) body.task_type = taskType;
+		const difficulty = ctx.getNodeParameter('taskDifficulty', itemIndex, '') as string;
 		if (difficulty) body.difficulty = difficulty;
 	}
 
-	const extra = collection(ctx, 'caseAdditionalFields', itemIndex);
+	const extra = collection(ctx, 'taskAdditionalFields', itemIndex);
 	assignDefined(body, extra);
 
-	const optionsRaw = ctx.getNodeParameter('caseOptionsUi', itemIndex, {}) as {
+	const optionsRaw = ctx.getNodeParameter('taskOptionsUi', itemIndex, {}) as {
 		option?: Array<{ id?: string; text?: string; is_correct?: boolean }>;
 	};
 	const options = (optionsRaw.option || [])
@@ -93,7 +93,7 @@ export function buildCaseWriteBody(
 			const text = trimString(opt.text);
 			if (!text) return null;
 			return {
-				id: trimString(opt.id) || text.slice(0, 8).toLowerCase(),
+				id: trimString(opt.id) || text.slice(0, 8).toLowerTask(),
 				text,
 				is_correct: Boolean(opt.is_correct),
 			};
@@ -101,11 +101,11 @@ export function buildCaseWriteBody(
 		.filter(Boolean);
 	if (options.length) body.options = options;
 
-	const tagsRaw = trimString(ctx.getNodeParameter('caseTags', itemIndex, ''));
+	const tagsRaw = trimString(ctx.getNodeParameter('taskTags', itemIndex, ''));
 	if (tagsRaw) body.tags = parseCommaIds(tagsRaw);
 
 	if (mode === 'update' && Object.keys(body).length === 0) {
-		throw new NodeOperationError(ctx.getNode(), 'Set at least one case field to update', {
+		throw new NodeOperationError(ctx.getNode(), 'Set at least one task field to update', {
 			itemIndex,
 		});
 	}
@@ -169,10 +169,10 @@ export function buildInterviewWriteBody(
 	const extra = collection(ctx, 'interviewAdditionalFields', itemIndex);
 	assignDefined(body, extra);
 
-	const codingIds = parseCommaIds(ctx.getNodeParameter('codingCaseIds', itemIndex, '') as string);
-	const orgIds = parseCommaIds(ctx.getNodeParameter('orgCaseIds', itemIndex, '') as string);
-	if (codingIds.length) body.coding_case_ids = codingIds;
-	if (orgIds.length) body.org_case_ids = orgIds;
+	const codingIds = parseCommaIds(ctx.getNodeParameter('codingTaskIds', itemIndex, '') as string);
+	const orgIds = parseCommaIds(ctx.getNodeParameter('orgTaskIds', itemIndex, '') as string);
+	if (codingIds.length) body.coding_task_ids = codingIds;
+	if (orgIds.length) body.org_task_ids = orgIds;
 
 	const persona = collection(ctx, 'interviewPersona', itemIndex);
 	if (Object.keys(persona).length) body.persona = persona;
@@ -297,26 +297,26 @@ export const candidatesUiProperty = (ops: {
 	],
 });
 
-export const caseWriteProperties: INodeProperties[] = [
+export const taskWriteProperties: INodeProperties[] = [
 	{
 		displayName: 'Title',
-		name: 'caseTitle',
+		name: 'taskTitle',
 		type: 'string',
 		default: '',
 		required: true,
-		displayOptions: { show: { resource: ['case'], operation: ['create'] } },
+		displayOptions: { show: { resource: ['task'], operation: ['create'] } },
 	},
 	{
 		displayName: 'Title',
-		name: 'caseTitle',
+		name: 'taskTitle',
 		type: 'string',
 		default: '',
 		description: 'Leave empty to keep the current title',
-		displayOptions: { show: { resource: ['case'], operation: ['update'] } },
+		displayOptions: { show: { resource: ['task'], operation: ['update'] } },
 	},
 	{
-		displayName: 'Case Type',
-		name: 'caseType',
+		displayName: 'Task Type',
+		name: 'taskType',
 		type: 'options',
 		default: 'mcq',
 		options: [
@@ -324,11 +324,11 @@ export const caseWriteProperties: INodeProperties[] = [
 			{ name: 'Coding', value: 'coding' },
 			{ name: 'Text', value: 'text' },
 		],
-		displayOptions: { show: { resource: ['case'], operation: ['create'] } },
+		displayOptions: { show: { resource: ['task'], operation: ['create'] } },
 	},
 	{
-		displayName: 'Case Type',
-		name: 'caseType',
+		displayName: 'Task Type',
+		name: 'taskType',
 		type: 'options',
 		default: '',
 		options: [
@@ -337,11 +337,11 @@ export const caseWriteProperties: INodeProperties[] = [
 			{ name: 'Coding', value: 'coding' },
 			{ name: 'Text', value: 'text' },
 		],
-		displayOptions: { show: { resource: ['case'], operation: ['update'] } },
+		displayOptions: { show: { resource: ['task'], operation: ['update'] } },
 	},
 	{
 		displayName: 'Difficulty',
-		name: 'caseDifficulty',
+		name: 'taskDifficulty',
 		type: 'options',
 		default: 'medium',
 		options: [
@@ -349,11 +349,11 @@ export const caseWriteProperties: INodeProperties[] = [
 			{ name: 'Medium', value: 'medium' },
 			{ name: 'Hard', value: 'hard' },
 		],
-		displayOptions: { show: { resource: ['case'], operation: ['create'] } },
+		displayOptions: { show: { resource: ['task'], operation: ['create'] } },
 	},
 	{
 		displayName: 'Difficulty',
-		name: 'caseDifficulty',
+		name: 'taskDifficulty',
 		type: 'options',
 		default: '',
 		options: [
@@ -362,48 +362,48 @@ export const caseWriteProperties: INodeProperties[] = [
 			{ name: 'Medium', value: 'medium' },
 			{ name: 'Hard', value: 'hard' },
 		],
-		displayOptions: { show: { resource: ['case'], operation: ['update'] } },
+		displayOptions: { show: { resource: ['task'], operation: ['update'] } },
 	},
 	{
 		displayName: 'Points',
-		name: 'casePoints',
+		name: 'taskPoints',
 		type: 'number',
 		default: 10,
-		displayOptions: { show: { resource: ['case'], operation: ['create'] } },
+		displayOptions: { show: { resource: ['task'], operation: ['create'] } },
 	},
 	{
 		displayName: 'Description',
-		name: 'caseDescription',
+		name: 'taskDescription',
 		type: 'string',
 		typeOptions: { rows: 2 },
 		default: '',
-		displayOptions: { show: { resource: ['case'], operation: ['create', 'update'] } },
+		displayOptions: { show: { resource: ['task'], operation: ['create', 'update'] } },
 	},
 	{
 		displayName: 'Question',
-		name: 'caseQuestion',
+		name: 'taskQuestion',
 		type: 'string',
 		typeOptions: { rows: 4 },
 		default: '',
 		description: 'Candidate-facing question (Markdown supported)',
-		displayOptions: { show: { resource: ['case'], operation: ['create', 'update'] } },
+		displayOptions: { show: { resource: ['task'], operation: ['create', 'update'] } },
 	},
 	{
 		displayName: 'Tags',
-		name: 'caseTags',
+		name: 'taskTags',
 		type: 'string',
 		default: '',
 		description: 'Comma-separated tags',
-		displayOptions: { show: { resource: ['case'], operation: ['create', 'update'] } },
+		displayOptions: { show: { resource: ['task'], operation: ['create', 'update'] } },
 	},
 	{
 		displayName: 'MCQ Options',
-		name: 'caseOptionsUi',
+		name: 'taskOptionsUi',
 		type: 'fixedCollection',
 		typeOptions: { multipleValues: true },
 		placeholder: 'Add Option',
 		default: {},
-		displayOptions: { show: { resource: ['case'], operation: ['create', 'update'] } },
+		displayOptions: { show: { resource: ['task'], operation: ['create', 'update'] } },
 		options: [
 			{
 				name: 'option',
@@ -418,11 +418,11 @@ export const caseWriteProperties: INodeProperties[] = [
 	},
 	{
 		displayName: 'Additional Fields',
-		name: 'caseAdditionalFields',
+		name: 'taskAdditionalFields',
 		type: 'collection',
 		placeholder: 'Add Field',
 		default: {},
-		displayOptions: { show: { resource: ['case'], operation: ['create', 'update'] } },
+		displayOptions: { show: { resource: ['task'], operation: ['create', 'update'] } },
 		options: [
 			{ displayName: 'Allow Multiple Answers', name: 'allow_multiple', type: 'boolean', default: false },
 			{
@@ -597,21 +597,21 @@ export const interviewWriteProperties: INodeProperties[] = [
 		},
 	},
 	{
-		displayName: 'Coding Case IDs',
-		name: 'codingCaseIds',
+		displayName: 'Coding Task IDs',
+		name: 'codingTaskIds',
 		type: 'string',
 		default: '',
-		description: 'Comma-separated platform case UUIDs',
+		description: 'Comma-separated platform task UUIDs',
 		displayOptions: {
 			show: { resource: ['interview'], operation: ['create', 'bulkCreate'] },
 		},
 	},
 	{
-		displayName: 'Org Case IDs',
-		name: 'orgCaseIds',
+		displayName: 'Org Task IDs',
+		name: 'orgTaskIds',
 		type: 'string',
 		default: '',
-		description: 'Comma-separated org case UUIDs',
+		description: 'Comma-separated org task UUIDs',
 		displayOptions: {
 			show: { resource: ['interview'], operation: ['create', 'bulkCreate'] },
 		},

@@ -13,14 +13,14 @@ import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workf
 import { ASSESS_WEBHOOK_EVENTS, praxicraftAssessApiRequest } from './GenericFunctions';
 import {
 	buildCandidatesBody,
-	buildCaseWriteBody,
+	buildTaskWriteBody,
 	buildInterviewRescheduleBody,
 	buildInterviewShareBody,
 	buildInterviewWriteBody,
 	buildTemplateWriteBody,
 	buildWebhookWriteBody,
-	caseIdsFromField,
-	caseWriteProperties,
+	taskIdsFromField,
+	taskWriteProperties,
 	candidatesUiProperty,
 	interviewWriteProperties,
 } from './writeBodies';
@@ -104,7 +104,7 @@ export class PraxicraftAssess implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-		description: 'Full Praxicraft Assess Public API wrapper (assessments, cases, invites, pipelines, interviews, webhooks)',
+		description: 'Full Praxicraft Assess Public API wrapper (assessments, tasks, invites, pipelines, interviews, webhooks)',
 		defaults: { name: 'Praxicraft Assess' },
 		usableAsTool: true,
 		inputs: [NodeConnectionTypes.Main],
@@ -118,7 +118,7 @@ export class PraxicraftAssess implements INodeType {
 				noDataExpression: true,
 				options: [
 					{ name: 'Assessment', value: 'assessment' },
-					{ name: 'Case', value: 'case' },
+					{ name: 'Task', value: 'task' },
 					{ name: 'Integration', value: 'integration' },
 					{ name: 'Interview', value: 'interview' },
 					{ name: 'Invitation', value: 'invitation' },
@@ -137,34 +137,34 @@ export class PraxicraftAssess implements INodeType {
 				noDataExpression: true,
 				displayOptions: { show: { resource: ['assessment'] } },
 				options: [
-					{ name: 'Attach Cases', value: 'attachCases', action: 'Attach cases to assessment' },
+					{ name: 'Attach Tasks', value: 'attachTasks', action: 'Attach tasks to assessment' },
 					{ name: 'Create', value: 'create', action: 'Create an assessment' },
 					{ name: 'Duplicate', value: 'duplicate', action: 'Duplicate an assessment' },
 					{ name: 'Get', value: 'get', action: 'Get an assessment' },
 					{ name: 'List', value: 'list', action: 'List assessments' },
-					{ name: 'List Cases', value: 'listCases', action: 'List assessment cases' },
+					{ name: 'List Tasks', value: 'listTasks', action: 'List assessment tasks' },
 					{ name: 'List Results', value: 'listResults', action: 'List assessment results' },
-					{ name: 'Remove Case', value: 'removeCase', action: 'Remove a case from assessment' },
-					{ name: 'Replace Cases', value: 'replaceCases', action: 'Replace assessment cases' },
+					{ name: 'Remove Task', value: 'removeTask', action: 'Remove a task from assessment' },
+					{ name: 'Replace Tasks', value: 'replaceTasks', action: 'Replace assessment tasks' },
 					{ name: 'Update', value: 'update', action: 'Update an assessment' },
 				],
 				default: 'list',
 			},
 
-			// ── Case ops ────────────────────────────────────────────────
+			// ── Task ops ────────────────────────────────────────────────
 			{
 				displayName: 'Operation',
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
-				displayOptions: { show: { resource: ['case'] } },
+				displayOptions: { show: { resource: ['task'] } },
 				options: [
-					{ name: 'Create', value: 'create', action: 'Create an org case' },
-					{ name: 'Delete', value: 'delete', action: 'Delete an org case' },
-					{ name: 'Get', value: 'get', action: 'Get an org case' },
-					{ name: 'List', value: 'list', action: 'List org cases' },
-					{ name: 'List Platform Cases', value: 'listPlatform', action: 'List platform case library' },
-					{ name: 'Update', value: 'update', action: 'Update an org case' },
+					{ name: 'Create', value: 'create', action: 'Create an org task' },
+					{ name: 'Delete', value: 'delete', action: 'Delete an org task' },
+					{ name: 'Get', value: 'get', action: 'Get an org task' },
+					{ name: 'List', value: 'list', action: 'List org tasks' },
+					{ name: 'List Platform Tasks', value: 'listPlatform', action: 'List platform task library' },
+					{ name: 'Update', value: 'update', action: 'Update an org task' },
 				],
 				default: 'list',
 			},
@@ -265,7 +265,7 @@ export class PraxicraftAssess implements INodeType {
 					{ name: 'Get Analysis', value: 'analysis', action: 'Get interview analysis' },
 					{ name: 'Get Replay', value: 'replay', action: 'Get interview replay' },
 					{ name: 'List', value: 'list', action: 'List interviews' },
-					{ name: 'List Org Cases', value: 'listOrgCases', action: 'List interview org cases' },
+					{ name: 'List Org Tasks', value: 'listOrgTasks', action: 'List interview org tasks' },
 					{ name: 'List Templates', value: 'listTemplates', action: 'List interview templates' },
 					{ name: 'Reschedule', value: 'reschedule', action: 'Reschedule an interview' },
 					{ name: 'Share', value: 'share', action: 'Share an interview' },
@@ -304,10 +304,10 @@ export class PraxicraftAssess implements INodeType {
 							'update',
 							'duplicate',
 							'listResults',
-							'listCases',
-							'attachCases',
-							'replaceCases',
-							'removeCase',
+							'listTasks',
+							'attachTasks',
+							'replaceTasks',
+							'removeTask',
 						],
 					},
 				},
@@ -323,28 +323,28 @@ export class PraxicraftAssess implements INodeType {
 				},
 			},
 			{
-				displayName: 'Case ID',
-				name: 'caseId',
+				displayName: 'Task ID',
+				name: 'taskId',
 				type: 'string',
 				default: '',
 				required: true,
 				displayOptions: {
 					show: {
-						resource: ['case'],
+						resource: ['task'],
 						operation: ['get', 'update', 'delete'],
 					},
 				},
 			},
 			{
-				displayName: 'Case ID',
-				name: 'caseId',
+				displayName: 'Task ID',
+				name: 'taskId',
 				type: 'string',
 				default: '',
 				required: true,
 				displayOptions: {
 					show: {
 						resource: ['assessment'],
-						operation: ['removeCase'],
+						operation: ['removeTask'],
 					},
 				},
 			},
@@ -725,20 +725,20 @@ export class PraxicraftAssess implements INodeType {
 				},
 			},
 
-			...caseWriteProperties,
+			...taskWriteProperties,
 			...interviewWriteProperties,
 
 			{
-				displayName: 'Case IDs',
-				name: 'caseIds',
+				displayName: 'Task IDs',
+				name: 'taskIds',
 				type: 'string',
 				default: '',
 				required: true,
-				description: 'Comma-separated case UUIDs to attach or replace',
+				description: 'Comma-separated task UUIDs to attach or replace',
 				displayOptions: {
 					show: {
 						resource: ['assessment'],
-						operation: ['attachCases', 'replaceCases'],
+						operation: ['attachTasks', 'replaceTasks'],
 					},
 				},
 			},
@@ -750,7 +750,7 @@ export class PraxicraftAssess implements INodeType {
 					show: {
 						resource: [
 							'assessment',
-							'case',
+							'task',
 							'invitation',
 							'pipeline',
 							'webhook',
@@ -760,7 +760,7 @@ export class PraxicraftAssess implements INodeType {
 						operation: [
 							'list',
 							'listResults',
-							'listCases',
+							'listTasks',
 							'listPlatform',
 							'listEnrollments',
 							'listDeliveries',
@@ -769,7 +769,7 @@ export class PraxicraftAssess implements INodeType {
 							'listTeam',
 							'auditLog',
 							'listTemplates',
-							'listOrgCases',
+							'listOrgTasks',
 						],
 					},
 				},
@@ -821,54 +821,58 @@ export class PraxicraftAssess implements INodeType {
 					} else if (operation === 'listResults') {
 						path = `/assessments/${slug()}/results/`;
 						qs = cursorQs(this, i);
-					} else if (operation === 'listCases') {
-						path = `/assessments/${slug()}/cases/`;
+					} else if (operation === 'listTasks') {
+						path = `/assessments/${slug()}/tasks/`;
 						qs = cursorQs(this, i);
-					} else if (operation === 'attachCases') {
+					} else if (operation === 'attachTasks') {
 						method = 'POST';
-						path = `/assessments/${slug()}/cases/attach/`;
-						const caseIds = caseIdsFromField(this, i);
-						if (!caseIds.length) {
-							throw new NodeOperationError(this.getNode(), 'Provide at least one Case ID', {
+						path = `/assessments/${slug()}/tasks/attach/`;
+						const taskIds = taskIdsFromField(this, i);
+						if (!taskIds.length) {
+							throw new NodeOperationError(this.getNode(), 'Provide at least one Task ID', {
 								itemIndex: i,
 							});
 						}
-						body = { case_ids: caseIds };
-					} else if (operation === 'replaceCases') {
+						body = {
+							tasks: taskIds.map((task_id) => ({ task_id, source: 'platform' })),
+						};
+					} else if (operation === 'replaceTasks') {
 						method = 'PUT';
-						path = `/assessments/${slug()}/cases/replace/`;
-						const caseIds = caseIdsFromField(this, i);
-						if (!caseIds.length) {
-							throw new NodeOperationError(this.getNode(), 'Provide at least one Case ID', {
+						path = `/assessments/${slug()}/tasks/replace/`;
+						const taskIds = taskIdsFromField(this, i);
+						if (!taskIds.length) {
+							throw new NodeOperationError(this.getNode(), 'Provide at least one Task ID', {
 								itemIndex: i,
 							});
 						}
-						body = { case_ids: caseIds };
-					} else if (operation === 'removeCase') {
+						body = {
+							tasks: taskIds.map((task_id) => ({ task_id, source: 'platform' })),
+						};
+					} else if (operation === 'removeTask') {
 						method = 'DELETE';
-						path = `/assessments/${slug()}/cases/remove/`;
-						body = { case_id: this.getNodeParameter('caseId', i) as string };
+						path = `/assessments/${slug()}/tasks/remove/`;
+						body = { assessment_task_id: this.getNodeParameter('taskId', i) as string };
 					}
-				} else if (resource === 'case') {
+				} else if (resource === 'task') {
 					if (operation === 'list') {
-						path = '/cases/';
+						path = '/tasks/';
 						qs = cursorQs(this, i);
 					} else if (operation === 'listPlatform') {
-						path = '/platform-cases/';
+						path = '/platform-tasks/';
 						qs = cursorQs(this, i);
 					} else if (operation === 'create') {
 						method = 'POST';
-						path = '/cases/create/';
-						body = buildCaseWriteBody(this, i, 'create');
+						path = '/tasks/create/';
+						body = buildTaskWriteBody(this, i, 'create');
 					} else if (operation === 'get') {
-						path = `/cases/${enc(this.getNodeParameter('caseId', i) as string)}/`;
+						path = `/tasks/${enc(this.getNodeParameter('taskId', i) as string)}/`;
 					} else if (operation === 'update') {
 						method = 'PATCH';
-						path = `/cases/${enc(this.getNodeParameter('caseId', i) as string)}/`;
-						body = buildCaseWriteBody(this, i, 'update');
+						path = `/tasks/${enc(this.getNodeParameter('taskId', i) as string)}/`;
+						body = buildTaskWriteBody(this, i, 'update');
 					} else if (operation === 'delete') {
 						method = 'DELETE';
-						path = `/cases/${enc(this.getNodeParameter('caseId', i) as string)}/`;
+						path = `/tasks/${enc(this.getNodeParameter('taskId', i) as string)}/`;
 					}
 				} else if (resource === 'invitation') {
 					if (operation === 'list') {
@@ -1030,8 +1034,8 @@ export class PraxicraftAssess implements INodeType {
 					} else if (operation === 'deleteTemplate') {
 						method = 'DELETE';
 						path = `/interviews/templates/${enc(this.getNodeParameter('templateId', i) as string)}/delete/`;
-					} else if (operation === 'listOrgCases') {
-						path = '/interviews/org-cases/';
+					} else if (operation === 'listOrgTasks') {
+						path = '/interviews/org-tasks/';
 						qs = cursorQs(this, i);
 					}
 				} else if (resource === 'integration') {
