@@ -60,8 +60,8 @@ Supported events include assessment, candidate, invitation, pipeline, and interv
 
 | Resource | Operations |
 |----------|------------|
-| Assessment | List, Get, Create, Update, Duplicate, List Results, List/Attach/Replace/Remove Cases |
-| Case | List, List Platform Cases, Create, Get, Update, Delete |
+| Assessment | List, Get, Create, Update, Duplicate, List Results, List/Attach/Replace/Remove Tasks |
+| Task | List, List Platform Tasks, Create, Get, Update, Delete |
 | Invitation | List, Invite, Bulk Invite, Get, Get Result, Remind, Cancel |
 | Pipeline | List, Get, Enroll, Bulk Enroll, List/Get Enrollment, Reject, Hold, Unhold |
 | Webhook | List, Create, Get, Update, Delete, List Deliveries, Test |

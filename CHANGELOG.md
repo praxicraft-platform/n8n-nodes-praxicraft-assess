@@ -1,5 +1,12 @@
 # Changelog
 
+
+## 1.0.0
+
+### Breaking
+
+- Rename n8n resource/ops from case to task; Public API paths use /tasks/.
+
 ## 0.2.5
 
 - Remove `usableAsTool: true` from the Trigger node (n8n community lint / review).
