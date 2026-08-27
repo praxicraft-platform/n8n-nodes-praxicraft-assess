@@ -93,7 +93,7 @@ export function buildTaskWriteBody(
 			const text = trimString(opt.text);
 			if (!text) return null;
 			return {
-				id: trimString(opt.id) || text.slice(0, 8).toLowerTask(),
+				id: trimString(opt.id) || text.slice(0, 8).toLowerCase(),
 				text,
 				is_correct: Boolean(opt.is_correct),
 			};
