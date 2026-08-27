@@ -1,6 +1,13 @@
 # Changelog
 
 
+## 1.0.1
+
+### Fixed
+
+- Restore `String.toLowerCase` after an accidental case-to-task rename typo that broke `tsc` / publish.
+
+
 ## 1.0.0
 
 ### Breaking
