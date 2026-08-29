@@ -1,7 +1,7 @@
 {
   "name": "@praxicraft/n8n-nodes-assess",
-  "version": "1.0.2",
-  "description": "n8n community node for Praxicraft Assess \u2014 invite candidates, fetch results, pipelines, interviews, and signed webhooks via the Public API",
+  "version": "1.0.3",
+  "description": "n8n community node for Praxicraft Assess — invite candidates, fetch results, pipelines, interviews, and signed webhooks via the Public API",
   "keywords": [
     "n8n-community-node-package",
     "n8n",
