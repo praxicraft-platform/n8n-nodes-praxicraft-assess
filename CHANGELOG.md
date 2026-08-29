@@ -1,6 +1,13 @@
 # Changelog
 
 
+## 1.0.2
+
+### Fixed
+
+- Alphabetize Resource and Assessment operation option lists for n8n community node lint / review.
+
+
 ## 1.0.1
 
 ### Fixed
