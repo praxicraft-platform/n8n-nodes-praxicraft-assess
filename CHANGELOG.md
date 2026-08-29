@@ -1,6 +1,13 @@
 # Changelog
 
 
+## 1.0.3
+
+### Docs
+
+- Public-facing README (n8n Cloud + setup screenshots); move contributor/release guide to CONTRIBUTING.md.
+
+
 ## 1.0.2
 
 ### Fixed
